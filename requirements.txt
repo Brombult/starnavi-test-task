@@ -1,0 +1,10 @@
+fastapi
+SQLAlchemy
+pytest
+requests
+alt-profanity-check
+google-generativeai
+fastapi-users[sqlalchemy]
+aiosqlite
+uvicorn
+pydantic
