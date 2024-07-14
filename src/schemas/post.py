@@ -6,7 +6,6 @@ from pydantic import BaseModel
 class Post(BaseModel):
     title: str
     content: str
-    blocked: bool = False
 
 
 class PostCreate(Post):
@@ -21,3 +20,4 @@ class PostInDB(Post):
     id: int
     created_at: datetime
     user_id: int
+    blocked: bool

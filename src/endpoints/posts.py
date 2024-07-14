@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
+from profanity_check import predict
 
 from src.db import get_async_session, Post, User
 from src.schemas.post import PostCreate, PostInDB, PostUpdate
 from src.users import current_user
 
-router = APIRouter(prefix="/posts", tags=["posts"])
+router = APIRouter(tags=["posts"])
 
 
 async def get_post_by_id(
@@ -24,7 +25,7 @@ async def get_post_by_id(
     return post
 
 
-@router.post("/", response_model=PostInDB)
+@router.post("/", response_model=PostInDB, status_code=status.HTTP_201_CREATED)
 async def create_post(
     new_post: PostCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -32,6 +33,8 @@ async def create_post(
 ):
     post = Post(**new_post.dict())
     post.user_id = user.id
+    if predict([new_post.title, new_post.content]).any():
+        post.blocked = True
     session.add(post)
     await session.commit()
     return post
@@ -58,6 +61,9 @@ async def update_post(
     result = await session.scalar(
         update(Post).where(Post.id == post.id).values(**new_post.dict()).returning(Post)
     )
+    if predict([new_post.title, new_post.content]).any():
+        result.blocked = True
+    session.add(result)
     await session.commit()
     return result
 
