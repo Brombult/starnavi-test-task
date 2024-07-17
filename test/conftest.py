@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import sessionmaker
 
 from src.app import app
-from src.db.db import Base, Post
+from src.db.db import Base, Post, Comment
 from src.settings import settings
 
 engine = create_engine(settings.test_db_url, connect_args={"check_same_thread": False})
@@ -58,3 +58,15 @@ def test_post(test_db, client_authorized) -> tuple[TestClient, Post]:
     )
     test_db.commit()
     return client, post
+
+
+@pytest.fixture
+def test_comment(test_db, test_post) -> tuple[TestClient, Comment]:
+    client, post = test_post
+    comment = test_db.scalar(
+        insert(Comment)
+        .values(content="test", user_id=post.user_id, post_id=post.id)
+        .returning(Comment)
+    )
+    test_db.commit()
+    return client, comment

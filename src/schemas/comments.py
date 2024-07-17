@@ -5,11 +5,10 @@ from pydantic import BaseModel
 
 class Comment(BaseModel):
     content: str
-    blocked: bool = False
 
 
 class CommentCreate(Comment):
-    user_id: int
+    pass
 
 
 class CommentUpdate(Comment):
@@ -19,3 +18,6 @@ class CommentUpdate(Comment):
 class CommentInDB(Comment):
     id: int
     created_at: datetime
+    user_id: int
+    post_id: int
+    blocked: bool = False

@@ -4,15 +4,18 @@ from sqlalchemy import select
 
 from src.db import Post
 
+PARAMS = [
+    pytest.param("whatever", id="without profanity"),
+    pytest.param("fuck you", id="with profanity"),
+]
+
 
 def test_post_no_auth(client, test_db):
     r = client.post("/posts", json={"title": "title", "content": "content"})
     assert r.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-@pytest.mark.parametrize(
-    "content", ["how are you?", "fuck you"], ids=["without profanity", "with profanity"]
-)
+@pytest.mark.parametrize("content", PARAMS)
 def test_create_post(test_db, client_authorized, content):
     client, user_data = client_authorized
     r = client.post("/posts", json={"title": "title", "content": content})
@@ -50,9 +53,7 @@ def test_get_post(test_db, test_post):
     assert api_post["content"] == post.content
 
 
-@pytest.mark.parametrize(
-    "content", ["how are you?", "fuck you"], ids=["without profanity", "with profanity"]
-)
+@pytest.mark.parametrize("content", PARAMS)
 def test_update_post(test_db, test_post, content):
     client, post = test_post
     r = client.put(f"/posts/{post.id}", json={"title": "title", "content": content})
