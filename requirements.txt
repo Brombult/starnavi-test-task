@@ -8,3 +8,4 @@ fastapi-users[sqlalchemy]
 aiosqlite
 uvicorn
 pydantic
+openai

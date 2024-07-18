@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class Post(BaseModel):
     title: str
     content: str
+    auto_response: bool = False
+    auto_response_wait_in_sec: int = 0
 
 
 class PostCreate(Post):

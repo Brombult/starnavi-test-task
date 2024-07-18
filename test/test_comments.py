@@ -1,10 +1,12 @@
 import random
 import datetime
+from time import sleep
 
 import pytest
 from fastapi import status
 from sqlalchemy import select, insert
 
+from src import utils
 from src.db.db import Comment
 
 PARAMS = [
@@ -140,3 +142,26 @@ def test_analytics_out_of_range(
 
     data = r.json()
     assert not len(data)
+
+
+def test_create_auto_comment(test_db, test_post, monkeypatch):
+    content = "auto comment test"
+
+    def mock_get_comment(*args, **kwargs):
+        return content
+
+    monkeypatch.setattr(utils, "generate_comment_response", mock_get_comment)
+    client, post = test_post
+    post.auto_response = True
+    test_db.add(post)
+    test_db.commit()
+
+    r = client.post(
+        f"/comments", json={"content": "whatever"}, params={"post_id": post.id}
+    )
+    assert r.status_code == status.HTTP_201_CREATED
+
+    sleep(post.auto_response_wait_in_sec)
+    auto_comment = test_db.scalar(select(Comment).where(Comment.content == content))
+    assert auto_comment
+    assert auto_comment.post_id == post.id

@@ -10,4 +10,4 @@ class Settings(BaseSettings):
     api_key: str = ""
 
 
-settings = Settings(_env_file="prod.env", _env_file_encoding="utf-8")
+settings = Settings(_env_file=".env", _env_file_encoding="utf-8")

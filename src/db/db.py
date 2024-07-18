@@ -42,6 +42,8 @@ class Post(Base):
     title: Mapped[str] = mapped_column()
     content: Mapped[str] = mapped_column()
     blocked: Mapped[bool] = mapped_column(default=False)
+    auto_response: Mapped[bool] = mapped_column(default=False)
+    auto_response_wait_in_sec: Mapped[int] = mapped_column(default=0)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     user: Mapped["User"] = relationship(back_populates="posts")

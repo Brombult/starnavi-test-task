@@ -1,7 +1,7 @@
 import datetime
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, desc
 from profanity_check import predict
@@ -11,6 +11,7 @@ from src.db.db import Comment
 from src.endpoints.posts import get_post_by_id
 from src.schemas.comments import CommentInDB, CommentCreate, CommentUpdate, Analytics
 from src.users import current_user
+from src.utils import create_auto_comment
 
 router = APIRouter()
 
@@ -37,6 +38,7 @@ async def get_comment_by_id(
 @router.post("/", response_model=CommentInDB, status_code=status.HTTP_201_CREATED)
 async def create_comment(
     new_comment: CommentCreate,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_user),
     post: Post = Depends(get_post_by_id),
@@ -48,6 +50,15 @@ async def create_comment(
         comment.blocked = True
     session.add(comment)
     await session.commit()
+    if post.auto_response:
+        background_tasks.add_task(
+            create_auto_comment,
+            wait_time=post.auto_response_wait_in_sec,
+            session=session,
+            post=post,
+            comment=comment,
+            user_id=user.id,
+        )
     return comment
 
 
