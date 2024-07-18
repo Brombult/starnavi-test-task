@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from pydantic import BaseModel
 
@@ -21,3 +21,9 @@ class CommentInDB(Comment):
     user_id: int
     post_id: int
     blocked: bool = False
+
+
+class Analytics(BaseModel):
+    created_at: date
+    num_created: int
+    num_blocked: int

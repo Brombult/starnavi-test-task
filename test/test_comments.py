@@ -1,6 +1,9 @@
+import random
+import datetime
+
 import pytest
 from fastapi import status
-from sqlalchemy import select
+from sqlalchemy import select, insert
 
 from src.db.db import Comment
 
@@ -8,6 +11,33 @@ PARAMS = [
     pytest.param("whatever", id="without profanity"),
     pytest.param("fuck you", id="with profanity"),
 ]
+
+
+@pytest.fixture
+def generate_comments_for_analytics(test_db, test_post):
+    _, post = test_post
+    created = [
+        test_db.scalars(
+            insert(Comment)
+            .values(
+                content="test",
+                post_id=post.id,
+                user_id=post.user_id,
+                blocked=random.choice([True, False]),
+                created_at=random.choice(
+                    [
+                        datetime.date.today() - datetime.timedelta(days=n)
+                        for n in range(7)
+                    ]
+                ),
+            )
+            .returning(Comment)
+        )
+        for _ in range(10)
+    ]
+    num_blocked = sum([1 for c in created if c.first().blocked])
+    test_db.commit()
+    return len(created), num_blocked
 
 
 def test_comment_no_auth(client, test_db):
@@ -74,3 +104,39 @@ def test_delete_comment(test_db, test_comment):
     client, comment = test_comment
     r = client.delete(f"/comments/{comment.id}", params={"post_id": comment.post_id})
     assert r.status_code == status.HTTP_204_NO_CONTENT
+
+
+def test_analytics(test_db, generate_comments_for_analytics, client_authorized):
+    num_created, num_blocked = generate_comments_for_analytics
+    client, _ = client_authorized
+    today = datetime.date.today()
+    r = client.get(
+        "/comments/analytics/daily",
+        params={
+            "date_from": str(today - datetime.timedelta(days=8)),
+            "date_to": str(today + datetime.timedelta(days=1)),
+        },
+    )
+    assert r.status_code == status.HTTP_200_OK
+
+    data = r.json()
+    assert sum(d["num_created"] for d in data) == num_created
+    assert sum(d["num_blocked"] for d in data) == num_blocked
+
+
+def test_analytics_out_of_range(
+    test_db, generate_comments_for_analytics, client_authorized
+):
+    client, _ = client_authorized
+    today = datetime.date.today()
+    r = client.get(
+        "/comments/analytics/daily",
+        params={
+            "date_from": str(today + datetime.timedelta(days=10)),
+            "date_to": str(today + datetime.timedelta(days=20)),
+        },
+    )
+    assert r.status_code == status.HTTP_200_OK
+
+    data = r.json()
+    assert not len(data)

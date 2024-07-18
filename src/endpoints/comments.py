@@ -1,12 +1,15 @@
+import datetime
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func, desc
 from profanity_check import predict
 
 from src.db import get_async_session, Post, User
 from src.db.db import Comment
 from src.endpoints.posts import get_post_by_id
-from src.schemas.comments import CommentInDB, CommentCreate, CommentUpdate
+from src.schemas.comments import CommentInDB, CommentCreate, CommentUpdate, Analytics
 from src.users import current_user
 
 router = APIRouter()
@@ -84,3 +87,29 @@ async def delete_comment(
 ):
     await session.execute(delete(Comment).where(Comment.id == comment.id))
     await session.commit()
+
+
+@router.get("/analytics/daily", response_model=list[Analytics])
+async def get_analytics(
+    date_from: date, date_to: date, session: AsyncSession = Depends(get_async_session)
+):
+    stmt = (
+        select(
+            Comment.created_at,
+            func.count(Comment.created_at).label("num_created"),
+            func.count(Comment.id).filter(Comment.blocked).label("num_blocked"),
+        )
+        .group_by("created_at")
+        .order_by("created_at")
+        .having(Comment.created_at.between(date_from, date_to))
+    )
+    query = await session.execute(stmt)
+    query = query.all()
+    return [
+        Analytics(
+            created_at=row.created_at,
+            num_created=row.num_created,
+            num_blocked=row.num_blocked,
+        )
+        for row in query
+    ]
